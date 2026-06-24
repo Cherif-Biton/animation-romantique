@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💖 surprise_nawi</title>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Cormorant+Garamond:ital,wght@0,400;1,400;1,600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --pink: #ff69b4;
+      --deep-pink: #e91e8c;
+      --rose: #ff1493;
+      --light-pink: #ffb6d9;
+      --gold: #ffd700;
+      --cream: #fff9f5;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Cormorant Garamond', serif;
+      color: #fff;
+      cursor: default;
+    }
+
+    /* ─────────── PHASES ─────────── */
+    .phase {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.2s ease;
+    }
+    .phase.active { opacity: 1; pointer-events: all; }
+
+    /* ─────────── STARS BG ─────────── */
+    #stars-bg {
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse at 50% 60%, #12012b 0%, #000 70%);
+      opacity: 0;
+      transition: opacity 1.8s ease;
+      z-index: 0;
+    }
+    .star {
+      position: absolute;
+      border-radius: 50%;
+      background: #fff;
+      animation: twinkle var(--dur) ease-in-out infinite;
+    }
+    @keyframes twinkle {
+      0%,100% { opacity: .15; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.4); }
+    }
+
+    /* ─────────── FLOATING HEARTS ─────────── */
+    .fheart {
+      position: fixed;
+      font-size: 1.4rem;
+      pointer-events: none;
+      z-index: 1;
+      animation: floatUp var(--spd) ease-in forwards;
+    }
+    @keyframes floatUp {
+      0%  { transform: translateY(110vh) rotate(0deg) scale(1);   opacity: 1; }
+      80% { opacity: 1; }
+      100%{ transform: translateY(-15vh) rotate(var(--rot)) scale(.6); opacity: 0; }
+    }
+
+    /* ─────────── PHASE 1 · MATRIX ─────────── */
+    #phase-matrix { z-index: 10; background: #000; }
+    #matrix-canvas { position: absolute; inset: 0; }
+    #countdown {
+      position: relative; z-index: 5;
+      font-family: 'Dancing Script', cursive;
+      font-size: min(30vw, 28vh);
+      color: var(--pink);
+      text-shadow: 0 0 20px var(--pink), 0 0 60px var(--rose), 0 0 100px #ff007799;
+      animation: pop .6s cubic-bezier(.36,1.7,.6,1) both;
+    }
+    @keyframes pop {
+      from { transform: scale(.4); opacity: 0; }
+      to   { transform: scale(1);  opacity: 1; }
+    }
+
+    /* ─────────── PHASE 2 · MESSAGE ─────────── */
+    #phase-message { z-index: 5; flex-direction: column; gap: 1.5rem; }
+    #msg-line1, #msg-line2 {
+      font-family: 'Dancing Script', cursive;
+      font-size: clamp(2.4rem, 7vw, 5.5rem);
+      text-align: center;
+      text-shadow: 0 0 20px var(--pink), 0 0 50px var(--rose);
+      line-height: 1.2;
+    }
+    .letter {
+      display: inline-block;
+      opacity: 0; transform: translateY(25px) scale(.8);
+      transition: opacity .35s ease, transform .35s cubic-bezier(.34,1.56,.64,1);
+    }
+    .letter.show { opacity: 1; transform: none; }
+
+    /* ─────────── PHASE 3 · NOTEBOOK ─────────── */
+    #phase-notebook { z-index: 5; }
+    .nb-card {
+      background: var(--cream);
+      color: #2a0a1a;
+      border-radius: 16px;
+      padding: clamp(28px, 6vw, 52px);
+      width: min(340px, 88vw);
+      text-align: center;
+      box-shadow:
+        0 0 0 1px rgba(255,105,180,.3),
+        0 20px 60px rgba(255,20,147,.35),
+        0 0 80px rgba(255,105,180,.15);
+      cursor: pointer;
+      transform: translateY(30px) scale(.9);
+      opacity: 0;
+      transition: transform .7s cubic-bezier(.34,1.56,.64,1), opacity .7s ease, box-shadow .3s;
+    }
+    .nb-card.visible { transform: none; opacity: 1; }
+    .nb-card:hover {
+      box-shadow:
+        0 0 0 1px rgba(255,105,180,.6),
+        0 28px 80px rgba(255,20,147,.5),
+        0 0 100px rgba(255,105,180,.25);
+    }
+    .nb-icon {
+      font-size: 3.2rem;
+      display: block; margin-bottom: 14px;
+      animation: hb 1.6s ease-in-out infinite;
+    }
+    @keyframes hb {
+      0%,100%{ transform: scale(1); }
+      14%    { transform: scale(1.25); }
+      28%    { transform: scale(1); }
+      42%    { transform: scale(1.18); }
+    }
+    .nb-title {
+      font-family: 'Dancing Script', cursive;
+      font-size: 2rem;
+      color: var(--deep-pink);
+      margin-bottom: 8px;
+    }
+    .nb-sub { font-style: italic; font-size: .95rem; color: #7a4060; }
+    .nb-hint {
+      margin-top: 18px;
+      font-size: .78rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--rose);
+      animation: blink 1.8s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{ opacity:1; } 50%{ opacity:.25; } }
+
+    /* ─────────── PHASE 4 · GALLERY ─────────── */
+    #phase-gallery {
+      z-index: 5;
+      align-items: flex-start;
+      overflow-y: auto;
+      padding: 32px 20px 100px;
+    }
+    .gallery-grid {
+      display: flex; flex-wrap: wrap;
+      gap: 18px; justify-content: center;
+      max-width: 860px;
+    }
+    .pola {
+      background: #fff;
+      padding: 10px 10px 38px;
+      transform: rotate(var(--r)) translateY(40px) scale(.85);
+      opacity: 0;
+      transition: transform .65s cubic-bezier(.34,1.56,.64,1), opacity .65s;
+      box-shadow: 0 8px 28px rgba(0,0,0,.55);
+    }
+    .pola.in { transform: rotate(var(--r)) translateY(0) scale(1); opacity: 1; }
+    .pola:hover {
+      transform: rotate(0) scale(1.06) translateY(-6px) !important;
+      box-shadow: 0 20px 50px rgba(255,20,147,.45);
+      z-index: 20;
+    }
+    .pola img {
+      width: 140px; height: 140px;
+      object-fit: cover; display: block;
+    }
+    .pola .cap {
+      text-align: center; margin-top: 6px;
+      font-family: 'Dancing Script', cursive;
+      font-size: .88rem; color: #444; line-height: 1.35;
+    }
+    .next-btn {
+      position: fixed; bottom: 28px; right: 28px;
+      background: linear-gradient(135deg, var(--pink), var(--deep-pink));
+      color: #fff; border: none; border-radius: 50px;
+      padding: 13px 26px;
+      font-family: 'Dancing Script', cursive; font-size: 1.15rem;
+      cursor: pointer;
+      box-shadow: 0 4px 22px rgba(255,105,180,.55);
+      opacity: 0; transform: translateY(20px);
+      transition: opacity .5s, transform .5s, box-shadow .3s;
+      z-index: 100;
+    }
+    .next-btn.in { opacity: 1; transform: none; }
+    .next-btn:hover { box-shadow: 0 8px 35px rgba(255,20,147,.7); }
+
+    /* ─────────── PHASE 5 · HEART ─────────── */
+    #phase-heart { z-index: 5; flex-direction: column; gap: 24px; }
+    #heart-wrap {
+      position: relative;
+      width: min(480px, 90vw);
+      height: min(460px, 88vw);
+    }
+    .hp {
+      position: absolute;
+      width: 68px; height: 68px;
+      object-fit: cover;
+      border: 3px solid rgba(255,255,255,.95);
+      border-radius: 7px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.6), 0 0 12px rgba(255,105,180,.35);
+      transform: translate(-50%,-50%) scale(0);
+      transition: transform .8s cubic-bezier(.34,1.56,.64,1);
+    }
+    .hp.in { transform: translate(-50%,-50%) scale(1); }
+    #final-msg {
+      font-family: 'Dancing Script', cursive;
+      font-size: clamp(1.6rem, 5vw, 3rem);
+      text-align: center;
+      color: var(--light-pink);
+      text-shadow: 0 0 20px var(--rose);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 1s ease, transform 1s ease;
+    }
+    #final-msg.in { opacity: 1; transform: none; }
+  </style>
+</head>
+<body>
+
+<div id="stars-bg"></div>
+
+<!-- Phase 1 -->
+<div class="phase active" id="phase-matrix">
+  <canvas id="matrix-canvas"></canvas>
+  <div id="countdown">3</div>
+</div>
+
+<!-- Phase 2 -->
+<div class="phase" id="phase-message">
+  <div id="msg-line1"></div>
+  <div id="msg-line2"></div>
+</div>
+
+<!-- Phase 3 -->
+<div class="phase" id="phase-notebook">
+  <div class="nb-card" id="nb-card">
+    <span class="nb-icon">💖</span>
+    <div class="nb-title">Pour toi Nawi</div>
+    <div class="nb-sub">J'ai quelque chose à te montrer</div>
+    <div class="nb-hint">✨ Clique pour ouvrir ✨</div>
+  </div>
+</div>
+
+<!-- Phase 4 -->
+<div class="phase" id="phase-gallery">
+  <div class="gallery-grid" id="gallery-grid"></div>
+</div>
+<button class="next-btn" id="next-btn">Voir la surprise finale 💫</button>
+
+<!-- Phase 5 -->
+<div class="phase" id="phase-heart">
+  <div id="heart-wrap"></div>
+  <div id="final-msg"></div>
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   🌸  PERSONNALISATION — MODIFIE ICI !
+   ══════════════════════════════════════ */
+const CFG = {
+  // Ligne 1 du message (ex: "Happy Birthday")
+  line1: "Vialine go là",
+  // Ligne 2 du message (ex: "Mon Amour 💖")
+  line2: "Mon 💖",
+  // Message final sur le cœur
+  finalMsg: "Peut être que je te le dis pas assez mais je t'aimeeeeeee de ouff avec ton petit kra là 😍💗",
+
+  // ─── TES PHOTOS ───
+  // Remplace chaque URL par l'URL directe d'une vraie photo
+  // Tu peux héberger tes photos sur : imgbb.com, imgur.com, etc.
+  photos: [
+    { url: "https://i.ibb.co/LDGX5JXb/IMG-20251006-WA0001.jpg", cap: "Avec tes lèvres qui sont pas jolies là 💕" },
+    { url: "https://i.ibb.co/DHWDLMp3/nawi.png", cap: "Bon là j'avoue que t'es canon ✨" },
+    { url: "https://i.ibb.co/Gfm17cRs/IMG-20251006-WA0004.jpg", cap: "Ouais sexyy🌸" },
+    { url: "https://i.ibb.co/tpyrC7PL/IMG-20251006-WA0007.jpg", cap: "Gros ventre 💫" },
+    { url: "https://i.ibb.co/cKP45Jmm/Whats-App-Image-2026-15-at-07-16-49.jpg", cap: "C'est la première photo que j'ai reçue de toi, j'étais tellement content 😍" },
+    { url: "https://i.ibb.co/7xMscm8j/Whats-App-Ime-2026-03-15-at-07-16-49.jpg", cap: "Notre première photo ensemble 💖" },
+    { url: "https://i.ibb.co/0pryzmPB/Whats-App-Image-2026-03-15-at-07-16-49.jpg", cap: "Bref je suis amoureux de toi ⭐" }
+  ]
+};
+/* ══════════════════════════════════════ */
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function setPhase(id) {
+  document.querySelectorAll('.phase').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ── STARS ── */
+function buildStars() {
+  const bg = document.getElementById('stars-bg');
+  for (let i = 0; i < 180; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const sz = Math.random() * 2.5 + .5;
+    s.style.cssText = `
+      width:${sz}px;height:${sz}px;
+      top:${Math.random()*100}%;left:${Math.random()*100}%;
+      --dur:${(Math.random()*3+2).toFixed(1)}s;
+      animation-delay:${(Math.random()*5).toFixed(1)}s;
+    `;
+    bg.appendChild(s);
+  }
+}
+
+/* ── MATRIX ── */
+function startMatrix() {
+  const c = document.getElementById('matrix-canvas');
+  const ctx = c.getContext('2d');
+  c.width = innerWidth; c.height = innerHeight;
+  const chars = 'アイウエオカキクケコ♥♡★☆サシスセソタチツ愛恋心';
+  const fs = 15, cols = Math.floor(c.width / fs);
+  const drops = Array(cols).fill(1);
+  return setInterval(() => {
+    ctx.fillStyle = 'rgba(0,0,0,.055)';
+    ctx.fillRect(0,0,c.width,c.height);
+    drops.forEach((y,i) => {
+      ctx.fillStyle = Math.random() > .92 ? '#fff' : (Math.random() > .5 ? '#ff69b4' : '#ff1493');
+      ctx.font = `${fs}px monospace`;
+      ctx.fillText(chars[Math.floor(Math.random()*chars.length)], i*fs, y*fs);
+      if (y*fs > c.height && Math.random() > .975) drops[i] = 0;
+      drops[i]++;
+    });
+  }, 45);
+}
+
+async function runCountdown() {
+  const el = document.getElementById('countdown');
+  const iv = startMatrix();
+  for (let n = 3; n >= 1; n--) {
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = 'pop .6s cubic-bezier(.36,1.7,.6,1) both';
+    el.textContent = n;
+    await sleep(950);
+  }
+  clearInterval(iv);
+}
+
+/* ── BIRTHDAY MSG ── */
+async function animateText(elId, text) {
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  for (const ch of text) {
+    const sp = document.createElement('span');
+    sp.className = 'letter';
+    sp.textContent = ch === ' ' ? '\u00A0' : ch;
+    el.appendChild(sp);
+  }
+  for (const sp of el.querySelectorAll('.letter')) {
+    await sleep(75);
+    sp.classList.add('show');
+  }
+}
+
+async function showMessage() {
+  buildStars();
+  document.getElementById('stars-bg').style.opacity = '1';
+  setPhase('phase-message');
+  await animateText('msg-line1', CFG.line1);
+  await sleep(200);
+  await animateText('msg-line2', CFG.line2);
+  await sleep(2200);
+}
+
+/* ── FLOATING HEARTS ── */
+let _fhInt;
+function startHearts() {
+  const pool = ['💖','💝','💗','💓','💞','❤️','✨','⭐','🌸','🌹','💋','💌'];
+  _fhInt = setInterval(() => {
+    const h = document.createElement('div');
+    h.className = 'fheart';
+    h.textContent = pool[Math.floor(Math.random()*pool.length)];
+    h.style.cssText = `
+      left:${Math.random()*100}vw;
+      font-size:${(Math.random()*1.2+.7).toFixed(1)}rem;
+      --spd:${(Math.random()*3+3.5).toFixed(1)}s;
+      --rot:${Math.random()*360}deg;
+    `;
+    document.body.appendChild(h);
+    setTimeout(() => h.remove(), 7000);
+  }, 350);
+}
+
+/* ── NOTEBOOK ── */
+async function showNotebook() {
+  setPhase('phase-notebook');
+  startHearts();
+  await sleep(120);
+  document.getElementById('nb-card').classList.add('visible');
+  await new Promise(r => document.getElementById('nb-card').addEventListener('click', r, {once:true}));
+}
+
+/* ── GALLERY ── */
+async function showGallery() {
+  setPhase('phase-gallery');
+  const grid = document.getElementById('gallery-grid');
+  grid.innerHTML = '';
+  const rots = [-5, 3, -2, 6, -4, 2, -6, 4, -1, 3, -5, 2];
+  CFG.photos.forEach((p, i) => {
+    const d = document.createElement('div');
+    d.className = 'pola';
+    d.style.cssText = `--r:${rots[i%rots.length]}deg; transition-delay:${i*.13}s`;
+    d.innerHTML = `<img src="${p.url}" alt="" loading="lazy"><div class="cap">${p.cap}</div>`;
+    grid.appendChild(d);
+  });
+  await sleep(150);
+  grid.querySelectorAll('.pola').forEach(p => p.classList.add('in'));
+  const btn = document.getElementById('next-btn');
+  await sleep(CFG.photos.length*130 + 600);
+  btn.classList.add('in');
+  await new Promise(r => btn.addEventListener('click', r, {once:true}));
+  btn.classList.remove('in');
+}
+
+/* ── HEART ── */
+function heartPos(n) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const t = (i/n) * 2 * Math.PI;
+    const x = 16 * Math.pow(Math.sin(t), 3);
+    const y = -(13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t));
+    pts.push({x, y});
+  }
+  const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+  const [mnX, mxX, mnY, mxY] = [Math.min(...xs),Math.max(...xs),Math.min(...ys),Math.max(...ys)];
+  const pad = .08;
+  return pts.map(p => ({
+    x: ((p.x-mnX)/(mxX-mnX)) * (1-2*pad) + pad,
+    y: ((p.y-mnY)/(mxY-mnY)) * (1-2*pad) + pad
+  }));
+}
+
+async function showHeart() {
+  clearInterval(_fhInt);
+  setPhase('phase-heart');
+  const wrap = document.getElementById('heart-wrap');
+  wrap.innerHTML = '';
+  const pos = heartPos(CFG.photos.length);
+  CFG.photos.forEach((p, i) => {
+    const img = document.createElement('img');
+    img.className = 'hp';
+    img.src = p.url;
+    img.style.cssText = `
+      left:${pos[i].x*100}%;
+      top:${pos[i].y*100}%;
+      transition-delay:${i*.09}s;
+    `;
+    wrap.appendChild(img);
+  });
+  await sleep(200);
+  wrap.querySelectorAll('.hp').forEach(h => h.classList.add('in'));
+  await sleep(CFG.photos.length*90 + 600);
+  const fm = document.getElementById('final-msg');
+  fm.textContent = CFG.finalMsg;
+  fm.classList.add('in');
+  startHearts();
+}
+
+/* ── MAIN ── */
+(async () => {
+  await runCountdown();
+  await showMessage();
+  await showNotebook();
+  await showGallery();
+  await showHeart();
+})();
+</script>
+</body>
+</html>

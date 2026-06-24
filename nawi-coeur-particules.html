@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pour Nawi</title>
+<style>
+  :root{
+    --cyan: #4ad8ff;
+    --cyan-soft: #8fe9ff;
+    --bg: #050812;
+    --pink: #ff6fa3;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html, body{
+    width:100%; height:100%;
+    background: radial-gradient(ellipse at 50% 70%, #0a1230 0%, #050812 60%, #020308 100%);
+    overflow:hidden;
+    font-family: 'Georgia', 'Times New Roman', serif;
+  }
+  #stage{
+    position:relative;
+    width:100vw; height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  canvas{
+    display:block;
+    position:absolute;
+    top:0; left:0;
+  }
+  #message{
+    position:absolute;
+    top:14%;
+    left:50%;
+    transform: translateX(-50%);
+    text-align:center;
+    opacity:0;
+    transition: opacity 2.5s ease;
+    pointer-events:none;
+    width:90%;
+  }
+  #message.show{ opacity:1; }
+  #message .line1{
+    font-size: clamp(1rem, 4vw, 1.6rem);
+    color: var(--cyan-soft);
+    letter-spacing: 0.08em;
+    text-shadow: 0 0 12px rgba(74,216,255,0.8), 0 0 28px rgba(74,216,255,0.4);
+    font-style: italic;
+  }
+  #message .line2{
+    margin-top: 0.4rem;
+    font-size: clamp(1.8rem, 7vw, 3.2rem);
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-shadow: 0 0 18px rgba(255,111,163,0.9), 0 0 40px rgba(74,216,255,0.5);
+  }
+  #replay{
+    position:absolute;
+    bottom:6%;
+    left:50%;
+    transform: translateX(-50%);
+    background: rgba(74,216,255,0.08);
+    border: 1px solid rgba(143,233,255,0.4);
+    color: var(--cyan-soft);
+    padding: 0.6rem 1.4rem;
+    border-radius: 999px;
+    font-family: sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    cursor:pointer;
+    opacity:0;
+    transition: opacity 1s ease, background 0.3s ease;
+    backdrop-filter: blur(4px);
+  }
+  #replay.show{ opacity:0.85; }
+  #replay:hover{ background: rgba(74,216,255,0.18); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="canvas"></canvas>
+  <div id="message">
+    <div class="line1">Pour la plus vilaine,</div>
+    <div class="line2">Nawi ❤️</div>
+  </div>
+  <button id="replay">revoir ✨</button>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const messageEl = document.getElementById('message');
+const replayBtn = document.getElementById('replay');
+
+let W, H, DPR;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * DPR;
+  canvas.height = H * DPR;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ---- Heart shape sampling ----
+// classic parametric heart, scaled
+function heartPoint(t, scale){
+  const x = 16 * Math.pow(Math.sin(t), 3);
+  const y = -(13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t));
+  return { x: x*scale, y: y*scale };
+}
+
+function buildHeartTargets(count, scale, cx, cy){
+  const pts = [];
+  for(let i=0;i<count;i++){
+    // bias sampling: mix of outline + filled interior for density
+    const t = Math.random() * Math.PI * 2;
+    const r = Math.pow(Math.random(), 0.45); // denser toward outline but filled
+    const p = heartPoint(t, scale * r);
+    pts.push({ x: cx + p.x, y: cy + p.y });
+  }
+  return pts;
+}
+
+// ---- Particle system ----
+const NUM = 900;
+let particles = [];
+let baseX, baseY, heartCx, heartCy, heartScale;
+
+function setupGeometry(){
+  baseX = W/2;
+  baseY = H*0.82;
+  heartCx = W/2;
+  heartCy = H*0.46;
+  heartScale = Math.min(W, H) * 0.018;
+}
+setupGeometry();
+window.addEventListener('resize', setupGeometry);
+
+function rand(a,b){ return a + Math.random()*(b-a); }
+
+function spawnParticle(target){
+  return {
+    x: baseX + rand(-40,40),
+    y: baseY + rand(-10,10),
+    vx: 0, vy: 0,
+    tx: target.x, ty: target.y,
+    size: rand(1.0, 2.6),
+    hue: rand(185, 200),
+    phase: 'rise', // rise -> form -> hold -> explode -> reform
+    delay: rand(0, 1.4),
+    speed: rand(0.025, 0.055),
+    flicker: Math.random()*Math.PI*2,
+    trail: []
+  };
+}
+
+function initParticles(){
+  const targets = buildHeartTargets(NUM, heartScale, heartCx, heartCy);
+  particles = targets.map(spawnParticle);
+}
+initParticles();
+
+let t0 = performance.now();
+let cycle = 0;
+const RISE_END = 2.6;
+const FORM_END = 5.5;
+const HOLD_END = 7.8;
+const EXPLODE_END = 9.6;
+const REFORM_END = 12.6;
+const CYCLE_LEN = 14.5;
+
+function easeOutCubic(x){ return 1 - Math.pow(1-x, 3); }
+function easeInOutQuad(x){ return x<0.5 ? 2*x*x : 1-Math.pow(-2*x+2,2)/2; }
+
+function drawBaseGlow(elapsed){
+  // glowing ellipse base, present from start, fades after explosion
+  let alpha = 1;
+  if(elapsed > FORM_END) alpha = Math.max(0, 1 - (elapsed-FORM_END)/2.5);
+  if(elapsed > EXPLODE_END) alpha = 0;
+  if(alpha <= 0) return;
+  const w = Math.min(W,H)*0.32;
+  const h = w*0.16;
+  if(!isFinite(w) || w <= 0) return;
+  const grad = ctx.createRadialGradient(baseX, baseY, 0, baseX, baseY, w*0.7);
+  grad.addColorStop(0, `rgba(150,240,255,${0.55*alpha})`);
+  grad.addColorStop(0.5, `rgba(74,216,255,${0.28*alpha})`);
+  grad.addColorStop(1, `rgba(74,216,255,0)`);
+  ctx.save();
+  ctx.translate(baseX, baseY);
+  ctx.scale(1, 0.35);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(0,0,w*0.7,0,Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function step(){
+  const now = performance.now();
+  let elapsed = ((now - t0)/1000) % CYCLE_LEN;
+  const newCycle = Math.floor((now-t0)/1000 / CYCLE_LEN);
+  if(newCycle !== cycle){
+    cycle = newCycle;
+  }
+
+  ctx.clearRect(0,0,W,H);
+  // fading trail effect background
+  ctx.fillStyle = 'rgba(5,8,18,0.28)';
+  ctx.fillRect(0,0,W,H);
+
+  drawBaseGlow(elapsed);
+
+  let explodeProgress = 0;
+  if(elapsed > FORM_END+1 && elapsed <= EXPLODE_END){
+    explodeProgress = (elapsed - (FORM_END+1)) / (EXPLODE_END-(FORM_END+1));
+  } else if(elapsed > EXPLODE_END){
+    explodeProgress = 1;
+  }
+
+  let reformProgress = 0;
+  if(elapsed > EXPLODE_END){
+    reformProgress = Math.min(1, (elapsed-EXPLODE_END)/(REFORM_END-EXPLODE_END));
+  }
+
+  for(const p of particles){
+    let localT = elapsed - p.delay;
+    let px, py, size, alpha;
+
+    if(localT < 0){
+      px = baseX; py = baseY; alpha = 0; size = p.size;
+    } else if(elapsed <= FORM_END+1){
+      // rise + form phase
+      let prog = Math.min(1, localT / (FORM_END+1 - p.delay));
+      const e = easeOutCubic(prog);
+      px = baseX + (p.tx - baseX) * e + Math.sin(elapsed*2+p.phase)* (1-e)*8;
+      py = baseY + (p.ty - baseY) * e;
+      alpha = Math.min(1, prog*1.8);
+      size = p.size * (0.6 + 0.4*e);
+    } else if(elapsed <= EXPLODE_END){
+      // explode outward from heart position
+      const ang = Math.atan2(p.ty-heartCy, p.tx-heartCx) + (Math.random()-0.5)*0.02;
+      const dist = explodeProgress * Math.min(W,H) * 0.5 * (0.5+Math.random()*0.5);
+      px = p.tx + Math.cos(ang)*dist*explodeProgress;
+      py = p.ty + Math.sin(ang)*dist*explodeProgress - explodeProgress*60;
+      alpha = Math.max(0, 1-explodeProgress*1.1);
+      size = p.size * (1 - explodeProgress*0.5);
+    } else {
+      // reform back into heart
+      const ang = Math.atan2(p.ty-heartCy, p.tx-heartCx);
+      const startDist = Math.min(W,H)*0.5*0.75;
+      const e = easeInOutQuad(reformProgress);
+      const dist = startDist * (1-e);
+      px = p.tx + Math.cos(ang)*dist;
+      py = p.ty + Math.sin(ang)*dist - (1-e)*60;
+      alpha = Math.min(1, reformProgress*1.6);
+      size = p.size * (0.5+0.5*e);
+    }
+
+    const flick = 0.7 + 0.3*Math.sin(now*0.006 + p.flicker);
+    const safeSize = Math.max(0.3, Math.abs(size));
+    if(!isFinite(px) || !isFinite(py) || !isFinite(safeSize) || alpha <= 0) continue;
+    ctx.beginPath();
+    const grad = ctx.createRadialGradient(px,py,0,px,py,safeSize*3.2);
+    grad.addColorStop(0, `rgba(220,250,255,${alpha*flick})`);
+    grad.addColorStop(0.4, `hsla(${p.hue},100%,70%,${alpha*flick*0.8})`);
+    grad.addColorStop(1, `hsla(${p.hue},100%,60%,0)`);
+    ctx.fillStyle = grad;
+    ctx.arc(px,py,safeSize*3.2,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // message fade in during hold, fade out before explosion, back in during reform
+  if(elapsed > FORM_END && elapsed < FORM_END+0.9){
+    messageEl.classList.add('show');
+  } else if(elapsed > EXPLODE_END-0.3 && elapsed < EXPLODE_END+0.2){
+    messageEl.classList.remove('show');
+  } else if(elapsed > REFORM_END-0.5 && elapsed < REFORM_END){
+    messageEl.classList.add('show');
+  } else if(elapsed < 0.1){
+    messageEl.classList.remove('show');
+  }
+
+  requestAnimationFrame(step);
+}
+requestAnimationFrame(step);
+
+replayBtn.classList.add('show');
+replayBtn.addEventListener('click', ()=>{
+  t0 = performance.now();
+  initParticles();
+  messageEl.classList.remove('show');
+});
+</script>
+</body>
+</html>
