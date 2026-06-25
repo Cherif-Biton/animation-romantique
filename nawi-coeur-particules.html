@@ -130,9 +130,28 @@ function buildHeartTargets(count, scale, cx, cy){
 }
 
 // ---- Particle system ----
-const NUM = 900;
+const NUM = 550;
 let particles = [];
 let baseX, baseY, heartCx, heartCy, heartScale;
+
+// Pre-render a single glow sprite once, reused via drawImage (much cheaper
+// than calling createRadialGradient for every particle on every frame).
+const SPRITE_SIZE = 64;
+const glowSprite = document.createElement('canvas');
+glowSprite.width = SPRITE_SIZE;
+glowSprite.height = SPRITE_SIZE;
+const gctx = glowSprite.getContext('2d');
+(function buildSprite(){
+  const r = SPRITE_SIZE/2;
+  const g = gctx.createRadialGradient(r,r,0,r,r,r);
+  g.addColorStop(0, 'rgba(225,250,255,1)');
+  g.addColorStop(0.35, 'rgba(140,230,255,0.85)');
+  g.addColorStop(1, 'rgba(74,216,255,0)');
+  gctx.fillStyle = g;
+  gctx.beginPath();
+  gctx.arc(r,r,r,0,Math.PI*2);
+  gctx.fill();
+})();
 
 function setupGeometry(){
   baseX = W/2;
@@ -267,15 +286,14 @@ function step(){
     const flick = 0.7 + 0.3*Math.sin(now*0.006 + p.flicker);
     const safeSize = Math.max(0.3, Math.abs(size));
     if(!isFinite(px) || !isFinite(py) || !isFinite(safeSize) || alpha <= 0) continue;
-    ctx.beginPath();
-    const grad = ctx.createRadialGradient(px,py,0,px,py,safeSize*3.2);
-    grad.addColorStop(0, `rgba(220,250,255,${alpha*flick})`);
-    grad.addColorStop(0.4, `hsla(${p.hue},100%,70%,${alpha*flick*0.8})`);
-    grad.addColorStop(1, `hsla(${p.hue},100%,60%,0)`);
-    ctx.fillStyle = grad;
-    ctx.arc(px,py,safeSize*3.2,0,Math.PI*2);
-    ctx.fill();
+
+    const drawSize = safeSize * 6.4; // sprite diameter on screen
+    ctx.globalAlpha = Math.min(1, alpha*flick);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(glowSprite, px - drawSize/2, py - drawSize/2, drawSize, drawSize);
   }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
 
   // message fade in during hold, fade out before explosion, back in during reform
   if(elapsed > FORM_END && elapsed < FORM_END+0.9){
